@@ -1,0 +1,23 @@
+[project]
+name = "origin-authorisation"
+version = "0.1.0"
+description = "Compare BGP route origin ASNs in the DFZ against the IRR and RPKI"
+requires-python = "==3.13.14"
+dependencies = [
+    "mrtparse==2.2.0",
+    "requests==2.34.2",
+    "py-radix==1.1.0",
+    "plotly==6.9.0",
+]
+
+[tool.uv]
+package = false
+
+[dependency-groups]
+dev = [
+    "black==26.5.1",
+    "mypy==2.3.1",
+    "types-pysocks==1.7.1.20260518",
+    "types-requests==2.33.0.20260712",
+]
+
