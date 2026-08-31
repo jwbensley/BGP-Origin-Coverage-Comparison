@@ -82,120 +82,117 @@ def compare_origins(
     stats_file: str,
 ) -> dict[str, int]:
     """
-    We need to do a three-way check between DFZ, IRR, and ROA data.
+        We need to do a three-way check between DFZ, IRR, and ROA data.
 
-    Phase 1:
-    First, this function compares every prefix in the DFZ to the IRR and ROA data.
-    DFZ vs IRR:
-    * It gets all prefixes in the IRR data which cover the DFZ prefix based on prefix length and the IRR prefixes max_length attribute
-    (a DFZ prefix may be covered by an IRR prefix based on prefix length, but if the DFZ prefix is more specific, it must fit within the max_length attribute of the IRR prefix).
-    * It builds a set of origin ASNs from all the covering prefixes found in the IRR data.
-      * It compares each origin ASN of the prefix in the DFZ with each origin ASN in the set of IRR data origins.
-      * If an ASN from the DFZ prefix is found in the IRR set, the DFZ origin ASN is added to dfz_irr_origin_matches[DFZ prefix].
-      * If an ASN from the DFZ prefix is not found in the IRR set, the DFZ origin ASN is added to dfz_irr_origin_mismatches[DFZ prefix].
-    * If no IRR prefix covers the DFZ prefix at all, the DFZ prefix is recorded in dfz_irr_prefix_not_found.
-    DFZ vs ROA:
-    * The same approach is used to compare the DFZ data to the ROA data.
-    * It gets all prefixes in the ROA data which cover the DFZ prefix based on prefix length and the ROA prefixes max_length attribute
-    (a DFZ prefix may be covered by a ROA prefix based on prefix length, but if the DFZ prefix is more specific, it must fit within the max_length attribute of the ROA prefix).
-      * It builds a set of origin ASNs from all the covering prefixes found in the ROA data.
-        * It compares each origin ASN of the prefix in the DFZ with each origin ASN in the set of ROA data origins.
-        * If an ASN from the DFZ prefix is found in the ROA set, the DFZ origin ASN is added to dfz_roa_origin_matches[DFZ prefix].
-        * If an ASN from the DFZ prefix is not found in the ROA set, the DFZ origin ASN is added to dfz_roa_origin_mismatches[DFZ prefix].
-    * If no ROA prefix covers the DFZ prefix at all, the DFZ prefix is recorded in dfz_roa_prefix_not_found.
+        Phase 1: First, this function compares every prefix in the DFZ to the IRR and ROA data.
 
-    Phase 2:
-    Next this function compares every prefix in the IRR data, to the DFZ and ROA data.
-    IRR vs DFZ:
-    * A route(6) object in the IRR data can match an equal length and/or multiple more specific prefixes in the DFZ data
-    (up to /24 for v4 and up to /48 for v6, because of how route(6) objects are converted to prefix filter entries).
-    * However, a more specific route(6) object may exist in the IRR data than the IRR prefix currently being checked, with a different origin.
-    * Create empty skip-IRR-prefixes list.
-    * Therefore, for each IRR prefix we loop over, skip the prefix if it is in the list of skip-IRR-prefixes,
-    if not, additionally get all more specific IRR prefixes based on prefix length only, under the current prefix in the IRR data
-    (no max_length attribute check here because all IRR prefixes have the same max_length, /24 for v4 or /48 for v6).
-    * Then get all DFZ prefixes equal to or more specific than the IRR prefix currently being checked.
+        DFZ vs IRR:
+        * It gets all prefixes in the IRR data which cover the DFZ prefix based on prefix length and the IRR prefixes max_length attribute
+        (a DFZ prefix may be covered by an IRR prefix based on prefix length, but if the DFZ prefix is more specific, it must fit within the max_length attribute of the IRR prefix).
+        * It builds a set of origin ASNs from all the covering prefixes found in the IRR data.
+          * It compares each origin ASN of the prefix in the DFZ with each origin ASN in the set of IRR data origins.
+          * If an ASN from the DFZ prefix is found in the IRR set, the DFZ origin ASN is added to dfz_irr_origin_matches[DFZ prefix].
+          * If an ASN from the DFZ prefix is not found in the IRR set, the DFZ origin ASN is added to dfz_irr_origin_mismatches[DFZ prefix].
+        * If no IRR prefix covers the DFZ prefix at all, the DFZ prefix is recorded in dfz_irr_prefix_not_found.
+        DFZ vs ROA:
+        * The same approach is used to compare the DFZ data to the ROA data.
+        * It gets all prefixes in the ROA data which cover the DFZ prefix based on prefix length and the ROA prefixes max_length attribute
+        (a DFZ prefix may be covered by a ROA prefix based on prefix length, but if the DFZ prefix is more specific, it must fit within the max_length attribute of the ROA prefix).
+          * It builds a set of origin ASNs from all the covering prefixes found in the ROA data.
+            * It compares each origin ASN of the prefix in the DFZ with each origin ASN in the set of ROA data origins.
+            * If an ASN from the DFZ prefix is found in the ROA set, the DFZ origin ASN is added to dfz_roa_origin_matches[DFZ prefix].
+            * If an ASN from the DFZ prefix is not found in the ROA set, the DFZ origin ASN is added to dfz_roa_origin_mismatches[DFZ prefix].
+        * If no ROA prefix covers the DFZ prefix at all, the DFZ prefix is recorded in dfz_roa_prefix_not_found.
 
+        Phase 2: Next this function compares every prefix in the IRR data, to the DFZ and ROA data.
 
-    ------
-    * Using these two sub-sets of prefixes:
-      * For each prefix in the DFZ-sub-set, get all covering IRR prefixes from the IRR-sub-set based on the prefix length only, not based on the max_length attribute,
-      and build a set of unique origin ASNs from these covering IRR-sub-set prefixes.
-        * Compare each origin ASN of the DFZ-sub-set prefix with the set of origin ASNs from the covering IRR-sub-set prefixes.
-        * If an ASN from the DFZ-sub-set prefix is found in the IRR-sub-set origin set, the IRR origin ASN is added to irr_dfz_origin_matches[IRR prefix].
-        * If an ASN from the DFZ-sub-set prefix is not found in the IRR-sub-set origin set, the IRR origin ASN is added to irr_dfz_origin_mismatches[DFZ prefix].
-    * If the sub-set of DFZ prefixes built for the IRR prefix is empty (no DFZ-sub-set prefixes exists at or below the IRR prefix), the IRR prefix is recorded in irr_dfz_prefix_not_found.
-    * To avoid double counting, we need to add the IRR prefixes in the IRR-sub-set we've built to skip-IRR-prefixes, and skip them as we continue the IRR-vs-DFZ loop over the IRR prefixes.
+        IRR vs DFZ:
+        * Create empty skip-IRR-prefixes list.
+        * A route(6) object in the IRR data can match equal length or more specific prefixes in the DFZ data
+        (up to /24 for route objects and up to /48 for routes6 objects, because of how route(6) objects are converted to prefix filter entries).
+        * However, a more specific route(6) object may exist in the IRR data than the IRR prefix currently being checked, with a different origin.
+        * Therefore, loop over each IRR prefix, skip the prefix if it is in the list of skip-IRR-prefixes,
+        if not, additionally get all more specific IRR prefixes based on prefix length only (no max_length attribute check here).
+        * Then get all DFZ prefixes equal to or more specific than the IRR prefix currently being checked (based on prefix length only, no max_length attribute check here).
+        * If the DFZ-sub-set of prefixes built for the IRR prefix is empty (no DFZ-sub-set prefixes exists at or below the IRR prefix), the IRR prefix is recorded in irr_dfz_prefix_not_found,
+        move on to the next IRR prefix, and skip the rest of the steps below for this IRR prefix.
+        * Using these two outer sub-sets of prefixes:
+          * Loop over the IRR-outer-sub-set of prefixes from most specific to least specific.
+            * For each IRR prefix in the IRR-outer-sub-set, get all DFZ prefixes from the DFZ-outer-sub-set equal to or more specific than the IRR-outer-sub-set prefix based on prefix length only (no max_length attribute check here).
+            * Build a set of unique origin ASNs from these DFZ-inner-sub-set prefixes.
+              * Compare each origin ASN of the IRR-outer-sub-set prefix with the set of DFZ origins just from the DFZ-inner-sub-set.
+              * If an ASN from the IRR-outer-sub-set prefix is found in the DFZ origin set, the IRR origin ASN is added to irr_dfz_origin_matches[IRR prefix].
+              * If an ASN from the IRR-outer-sub-set prefix is not found in the DFZ origin set, the IRR origin ASN is added to irr_dfz_origin_mismatches[IRR prefix].
+            * After checking all the origins of the IRR-outer-sub-set prefix, remove the prefixes in the DFZ-inner-sub-set from the DFZ-outer-sub-set.
+        * To avoid double counting, we need to add the IRR prefixes in the IRR-outer-sub-set to skip-IRR-prefixes, and skip them as we continue the IRR-vs-DFZ loop over the remaining IRR prefixes.
+        IRR vs ROA:
+        * To match IRR route(6) objects (IRR prefixes) to ROA data, we need to do two separate matching steps.
+        * First, match covering ROAs.
+          * No skip list here.
+          * For each IRR prefix, get all covering (equal length or shorter) ROA prefixes based on prefix length and based on the max_length attribute of the ROA prefixes
+          (even though a ROA prefix length may be short/less specific than the IRR prefix length, it might not cover the IRR prefix if the ROA prefix has a max_length that is shorter than the IRR prefix length).
+            * If no covering ROA prefixes are found for the current IRR prefix, the IRR prefix is recorded in irr_roa_prefix_not_found, and the rest of the steps below are skipped for this IRR prefix.
+            * Build a set of origin ASNs from all the covering ROA prefixes found.
+              * Compare each origin ASN of the current IRR prefix with each origin ASN in the set of ROA origins.
+              * If an ASN from the IRR prefix is found in the ROA origin set, the IRR origin ASN is added to irr_roa_origin_matches[IRR prefix].
+              * If an ASN from the IRR prefix is not found in the ROA origin set, the IRR origin ASN is added to irr_roa_origin_mismatches[IRR prefix].
+        * Second, match more specific ROAs.
+          * This step is needed because a route object (IRR prefix) for a /20, is converted into a prefix filter which matches /20-/24, and can be used to announce 4x /24s into the DFZ.
+          * This may be implemented in the RPKI as 4x /24 ROAs.
+          * Create empty skip-IRR-prefixes list.
+          * For each IRR prefix, check if it is in the list of "to skip" IRR prefixes, if yes, skip the prefix,
+          if not, additionally get all more specific IRR prefixes under the current IRR prefix based on prefix length only (no max_length attribute check here).
+          * Then get all ROA prefixes equal to or more specific than the IRR prefix currently being checked, based on prefix length only (no max_length attribute check here).
+          * Using these two sub-sets of prefixes:
+            * For each ROA prefix in the ROA-sub-set, get all covering IRR prefixes from the IRR-sub-set based on prefix length only (no max_length attribute check here), then build a set of origin ASNs from these covering IRR prefixes sub-set.
+              * Compare each origin ASN of the ROA prefix with the set of origin ASNs from the covering IRR prefixes.
+              * If an ASN from the ROA-sub-set prefix is found in the IRR-sub-set origin set, the IRR origin ASN is added to irr_roa_origin_matches[IRR prefix].
+              * If an ASN from the ROA-sub-set prefix is not found in the IRR-sub-set origin set, the IRR origin ASN is added to irr_roa_origin_mismatches[IRR prefix].
+            * If the ROA-sub-set is empty (there are no ROA prefixes equal to or more specific than the IRR prefix), the IRR prefix is recorded in irr_roa_prefix_not_found.
+          * To avoid double counting, we need to add the IRR prefixes in the IRR-sub-set to skip-IRR-prefixes, and skip them as we continue the IRR-vs-ROA loop over all IRR prefixes.
 
-    -----
+        Phase 3: Finally this function compares every prefix in the ROA data to the DFZ and IRR data.
 
-    IRR vs ROA:
-    * To match IRR route(6) objects (IRR prefixes) to ROA data, we need to do two separate matching steps.
-    * First, match covering ROAs.
-      * No skip list here.
-      * For each IRR prefix, get all covering (equal length or shorter) ROA prefixes based on prefix length and based on the max_length attribute
-      (even though a ROA prefix length may be short/less specific than the IRR prefix length, it might not cover the IRR prefix if the ROA prefix has a max_length that is shorter than the IRR prefix length).
-        * Build a set of origin ASNs from all the covering ROA prefixes found.
-          * Compare each origin ASN of the current IRR prefix with each origin ASN in the set of ROA origins.
-          * If an ASN from the IRR prefix is found in the ROA origin set, the tuple (prefix, IRR origin ASN), is recorded in irr_roa_origin_matches.
-          * If an ASN from the IRR prefix is not found in the ROA origin set, the tuple (prefix, IRR origin ASN, ROA origin ASNs), is recorded in irr_roa_origin_mismatches.
-        * If no covering ROA prefixes are found for the current IRR IRR prefix, the IRR prefix is recorded in irr_roa_prefix_not_found.
-    * Second, match more specific ROAs.
-      * This step is needed because a route object (IRR prefix) for a /20, is converted into a prefix filter which matches /20-/24, and can be used to announce 4x /24s into the DFZ.
-      * This may be implemented in the RPKI as 4x /24 ROAs.
-      * Create empty skip-IRR-prefixes list.
-      * For each IRR prefix, check if it is in the list of "to skip" IRR prefixes, if yes, skip the prefix,
-      if not, additionally get all more specific IRR prefixes under the current IRR prefix based on prefix length only (no max_length attribute check here).
-      * Then get all ROA prefixes equal to or more specific than the IRR prefix currently being checked, based on prefix length only (no max_length attribute check here).
-      * Using these two sub-sets of prefixes:
-        * For each ROA prefix in the ROA-sub-set, get all covering IRR prefixes from the IRR-sub-set based on prefix length only (no max_length attribute check here), then build a set of origin ASNs from these covering IRR prefixes sub-set.
-          * Compare each origin ASN of the ROA prefix with the set of origin ASNs from the covering IRR prefixes.
-          * If an ASN from the ROA-sub-set prefix is found in the IRR-sub-set origin set, the tuple (prefix, IRR origin ASN), is recorded in irr_roa_origin_matches.
-          * If an ASN from the ROA-sub-set prefix is not found in the IRR-sub-set origin set, the tuple (prefix, IRR origin ASN, ROA origin ASNs), is recorded in irr_roa_origin_mismatches.
-        * If the ROA-sub-set is empty (there are no ROA prefixes equal to or more specific than the IRR prefix), the IRR prefix is recorded in irr_roa_prefix_not_found.
-      * To avoid double counting, we need to add the IRR prefixes in the IRR-sub-set to skip-IRR-prefixes, and skip them as we continue the IRR-vs-ROA loop over all IRR prefixes.
-
-    Phase 3:
-    Finally this function compares every prefix in the ROA data to the DFZ and IRR data.
-    ROA vs DFZ:
-    * Create empty skip-ROA-prefixes list.
-    * For each ROA prefix, skip if it is in the list of skip-ROA-prefixes, if not,
-    additionally get all more specific ROA prefixes under that prefix in the ROA data based on prefix length and the max_length attribute
-    (the more specific ROAs must fit within the max_length of the covering ROA prefix).
-    * For the ROA prefix currently being checked, get all DFZ prefixes equal to or more specific than the ROA prefix based on prefix length and on the max_length attribute
-    (the more specific DFZ prefixes must fit within the max_length of the covering ROA prefix).
-    * Using these two sub-sets of prefixes:
-      * For each DFZ-sub-set prefix, get all covering ROA prefixes from the ROA-sub-set and build a set of unique origin ASNs from these covering prefixes.
-        * Compare each origin ASN of the DFZ-sub-set prefix with the set of origin ASNs from the covering ROA-sub-set prefixes.
-        * If an ASN from the DFZ-sub-set prefix is found in the ROA-sub-set origin set, the tuple (prefix, ROA origin ASN), is recorded in roa_dfz_origin_matches.
-        * If an ASN from the DFZ-sub-set prefix is not found in the ROA-sub-set origin set, the tuple (prefix, ROA origin ASN, DFZ origin ASNs), is recorded in roa_dfz_origin_mismatches.
-      * If the sub-set of DFZ prefixes is empty (no DFZ prefix exists at or below the ROA current prefix), the ROA prefix is recorded in roa_dfz_prefix_not_found.
-    * To avoid double counting, we need to record the prefixes in this ROA prefix sub-set in skip-ROA-prefixes, and skip them as we continue the ROA-vs-DFZ loop over each ROA prefix.
-    ROA vs IRR:
-    * To match ROA prefixes to IRR data, we need to do two separate matching steps.
-    * First, match covering IRR prefixes.
-      * No skip list here.
-      * For each ROA prefix, get all covering (equal length or shorter) IRR prefixes based on prefix length only (no max_length attribute check here).
-      * This is because IRR route objects are expanded to /24 or /48 when building prefix filters.
-      * Build a set of origin ASNs from all the covering IRR prefixes found.
-          * Compare each origin ASN of the ROA prefix with each origin ASN in the set of IRR covering prefix origins.
-          * If an ASN from the ROA prefix is found in the IRR origin set, the tuple (prefix, ROA origin ASN), is recorded in roa_irr_origin_matches.
-          * If an ASN from the ROA prefix is not found in the IRR origin set, the tuple (prefix, ROA origin ASN, IRR origin ASNs), is recorded in roa_irr_origin_mismatches.
-    * Second, match more specific IRR prefixes.
-      * This step is needed because a ROA for a /20 with max_length up to /24, can be used to announce 4x /24s into the DFZ.
-      * This may be implemented in the IRR as 4x /24 route objects though.
-      * Create empty skip-ROA-prefixes list.
-      * For each ROA prefix, skip it if it is found in skip-ROA-prefixes, if not,
-      additionally get all more specific ROA prefixes under the current ROA prefix based on prefix length only (no max_length attribute check here).
-      * Then get all IRR prefixes more specific than the ROA prefix currently being checked based on prefix length only (no max_length attribute check here).
-      * Using these two sub-sets of prefixes:
-          * For each IRR-sub-set prefix, get all covering ROA prefixes from the ROA-sub-set, based on prefix length and based on the max_length attribute of each ROA prefix in the sub-net.
-            * From these ROA-sub-set prefixes, build a set of unique origin ASNs.
-            * Compare each origin ASN of the IRR-sub-set prefix with the set of origin ASNs from the ROA-sub-set prefixes.
-            * If an ASN from the IRR-sub-set prefix is found in the ROA-sub-set origin set, the tuple (prefix, IRR origin ASN), is recorded in roa_irr_origin_matches.
-            * If an ASN from the IRR-sub-set prefix is not found in the ROA-sub-set origin set, the tuple (prefix, IRR origin ASN, ROA origin ASNs), is recorded in roa_irr_origin_mismatches.
-      * If the sub-set of IRR prefixes is empty (no IRR prefix exists at or below the ROA current prefix), the ROA prefix is recorded in roa_irr_prefix_not_found.
-      * To avoid double counting, we need to record the ROA prefixes in the ROA sub-set in the skip-ROA-prefixes list, and skip them as we continue to the ROA-vs-IRR loop.
+        ROA vs DFZ:
+        * Create empty skip-ROA-prefixes list.
+        * For each ROA prefix, skip if it is in the list of skip-ROA-prefixes, if not,
+        additionally get all more specific ROA prefixes under that prefix in the ROA data based on prefix length and the max_length attribute or the ROA prefixes
+        (the more specific ROAs must fit within the max_length of the covering ROA prefix).
+        * For the ROA prefix currently being checked, get all DFZ prefixes equal to or more specific than the ROA prefix based on prefix length and on the max_length attribute of the current ROA prefix
+        (the more specific DFZ prefixes must fit within the max_length of the covering ROA prefix).
+        * If the sub-set of DFZ prefixes is empty (no DFZ prefix exists at or below the ROA current prefix), the ROA prefix is recorded in roa_dfz_prefix_not_found and the rest of the steps below are skipped.
+        * Using these two sub-sets of prefixes:
+          * For each DFZ-sub-set prefix, get all covering ROA prefixes from the ROA-sub-set and build a set of unique origin ASNs from these covering prefixes.
+            * Compare each origin ASN of the DFZ-sub-set prefix with the set of origin ASNs from the covering ROA-sub-set prefixes.
+    !!        * If an ASN from the DFZ-sub-set prefix is found in the ROA-sub-set origin set, the ROA origin ASN is added to roa_dfz_origin_matches[DFZ-sub-set prefix].
+    !!        * If an ASN from the DFZ-sub-set prefix is not found in the ROA-sub-set origin set, the ROA origin ASN is added to roa_dfz_origin_mismatches[DFZ-sub-set prefix].
+        * To avoid double counting, we need to record the prefixes in this ROA prefix sub-set in skip-ROA-prefixes, and skip them as we continue the ROA-vs-DFZ loop over each ROA prefix.
+        ROA vs IRR:
+        * To match ROA prefixes to IRR data, we need to do two separate matching steps.
+        * First, match covering IRR prefixes.
+          * No skip list here.
+          * For each ROA prefix, get all covering (equal length or shorter) IRR prefixes based on prefix length only (no max_length attribute check here).
+          * This is because IRR route objects are expanded to /24 or /48 when building prefix filters.
+          * If no covering IRR prefixes are found for the current ROA prefix, skip the rest of the steps below for this ROA prefix.
+          * Build a set of origin ASNs from all the covering IRR prefixes found.
+              * Compare each origin ASN of the ROA prefix with each origin ASN in the set of IRR covering prefix origins.
+              * If an ASN from the ROA prefix is found in the IRR origin set, the ROA origin ASN is added to roa_irr_origin_matches[ROA prefix].
+              * If an ASN from the ROA prefix is not found in the IRR origin set, the ROA origin ASN is added to roa_irr_origin_mismatches[ROA prefix].
+        * Second, match more specific IRR prefixes.
+          * This step is needed because a ROA for a /20 with max_length up to /24, can be used to announce 4x /24s into the DFZ.
+          * This may be implemented in the IRR as 4x /24 route objects though.
+          * Create empty skip-ROA-prefixes list.
+          * For each ROA prefix, skip it if it is found in skip-ROA-prefixes, if not,
+          additionally get all more specific ROA prefixes under the current ROA prefix based on prefix length only (no max_length attribute check here).
+          * Then get all IRR prefixes more specific than the ROA prefix currently being checked based on prefix length only (no max_length attribute check here).
+          * If the sub-set of IRR prefixes is empty (no IRR prefix exists at or below the current ROA prefix), the ROA prefix is recorded in roa_irr_prefix_not_found, and the rest of the steps for this ROA prefix are skipped.
+          * Using these two sub-sets of prefixes:
+              * For each IRR-sub-set prefix, get all covering ROA prefixes from the ROA-sub-set, based on prefix length and based on the max_length attribute of each ROA prefix in the sub-net.
+                * From these ROA-sub-set prefixes, build a set of unique origin ASNs.
+                * Compare each origin ASN of the IRR-sub-set prefix with the set of origin ASNs from the ROA-sub-set prefixes.
+    !!            * If an ASN from the IRR-sub-set prefix is found in the ROA-sub-set origin set, the IRR origin ASN is added to roa_irr_origin_matches[IRR-sub-set prefix].
+    !!            * If an ASN from the IRR-sub-set prefix is not found in the ROA-sub-set origin set, the IRR origin ASN is added to roa_irr_origin_mismatches[IRR-sub-set prefix].
+          * To avoid double counting, we need to record the ROA prefixes in the ROA sub-set in the skip-ROA-prefixes list, and skip them as we continue to the ROA-vs-IRR loop.
     """
     logging.info(f"Comparing origins between DFZ<>IRR<>RPKI data")
 
