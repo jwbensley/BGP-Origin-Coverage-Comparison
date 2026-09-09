@@ -10,6 +10,8 @@ import tempfile
 import mrtparse  # type: ignore
 from radix import radix  # type: ignore
 
+from app.allocated_resources import AllocatedResources  # type: ignore
+
 from .data import write_json
 
 
@@ -324,6 +326,19 @@ class MrtParser:
             node.data.setdefault("origins", set()).update(origins)  # type: ignore
 
         logging.info(f"Loaded {len(dfz_tree.nodes()):,} prefixes from MRT RIB")  # type: ignore
+
+        logging.info(
+            f"Removing unallocated origin ASNs and prefixes from the DFZ data..."
+        )
+        pre_size: int = len(dfz_tree.nodes())  # type: ignore
+        dfz_tree = AllocatedResources.remove_unallocated_asns(dfz_tree)
+        dfz_tree = AllocatedResources.remove_unallocated_prefixes(dfz_tree)
+        post_size: int = len(dfz_tree.nodes())  # type: ignore
+        diff = post_size - pre_size
+        logging.info(
+            f"After removing unallocated origin ASNs and prefixes, "
+            f"{post_size:,} DFZ prefixes remain ({diff:,})"
+        )  # type: ignore
 
         write_json(
             {node.prefix: list(node.data["origins"]) for node in dfz_tree.nodes()},  # type: ignore

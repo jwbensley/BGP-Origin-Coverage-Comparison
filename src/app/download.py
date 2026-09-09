@@ -96,7 +96,9 @@ class Download:
             return url
 
         rcvd = 0
-        logging.info(f"File size is {file_len/1024/1024:.7}MBs")
+        logging.info(
+            f"{os.path.basename(url)}: File size is {file_len/1024/1024:.2f}MBs"
+        )
         progress = 0.0
 
         with open(filename, "wb") as f:
@@ -117,11 +119,14 @@ class Download:
                 if rcvd == file_len:
                     logging.info(
                         f"Downloaded {rcvd}/{file_len} "
-                        f"({(rcvd/file_len)*100}%)"
+                        f"({(rcvd/file_len)*100:.2f}%) "
+                        f"{os.path.basename(filename)}"
                     )
                 elif ((rcvd / file_len) * 100) // 10 > progress:
                     logging.info(
-                        f"Downloaded {rcvd}/{file_len} ({(rcvd/file_len)*100:.3}%)"
+                        f"Downloaded {rcvd}/{file_len} "
+                        f"({(rcvd/file_len)*100:.2f}%) "
+                        f"{os.path.basename(filename)}"
                     )
                     progress = ((rcvd / file_len) * 100) // 10
         return url

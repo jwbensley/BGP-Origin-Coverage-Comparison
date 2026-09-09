@@ -10,6 +10,7 @@ from app.data import (
     compare_origins,
     load_tree_from_json,
     print_results,
+    write_json,
 )
 from app.download import Download
 from app.irr_parser import IrrParser
@@ -132,8 +133,6 @@ def main() -> None:
         roa_origins = load_tree_from_json(Settings.get_rpki_origins())
 
     else:
-        logging.info(f"Downloading data...")
-
         # Download the NRO delegated stats file to get the list of allocated ASNs and prefixes
         Download.get(
             Settings.get_nro_allocations().get_filename(),
@@ -194,18 +193,7 @@ def main() -> None:
             Settings.get_prefix_lengths(),
         )
 
-    logging.info(
-        f"Removing unallocated origin ASNs and prefixes from the DFZ data..."
-    )
-    pre_size: int = len(dfz_origins.nodes())  # type: ignore
-    dfz_origins = AllocatedResources.remove_unallocated_asns(dfz_origins)
-    dfz_origins = AllocatedResources.remove_unallocated_prefixes(dfz_origins)
-    post_size: int = len(dfz_origins.nodes())  # type: ignore
-    diff = post_size - pre_size
-    logging.info(
-        f"After removing unallocated origin ASNs and prefixes, "
-        f"{post_size:,} DFZ prefixes remain ({diff:,})"
-    )  # type: ignore
+    AllocatedResources.drop()
 
     compare_origins(
         dfz_origins,

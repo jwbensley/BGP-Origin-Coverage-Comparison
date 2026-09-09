@@ -32,40 +32,27 @@ class AllocatedResources:
         AllocatedResources.assigned_asns = set()
         AllocatedResources.allocated_tree = radix.Radix()
 
-        skip_0 = 0
-        skip_1 = 0
-        skip_2 = 0
-        skip_6 = 0
-        match_asn = 0
-        match_ipv4 = 0
-        match_ipv6 = 0
-
         for line in open(filename).readlines():
             values = line.split("|")
 
             # Org
             if values[0] in ["2", "nro", "iana"]:
-                skip_0 += 1
                 continue
 
             # Country code
             if values[1] in ["*", "nro"]:
-                skip_1 += 1
                 continue
 
             # Resource type
             if values[2] not in ["asn", "ipv4", "ipv6"]:
-                skip_2 += 1
                 continue
 
             # Status
             if values[6] != "assigned":
-                skip_6 += 1
                 continue
 
             match values[2]:
                 case "asn":
-                    match_asn += 1
                     base_asn = int(values[3])
                     asn_range = int(values[4])
 
@@ -80,7 +67,6 @@ class AllocatedResources:
                     raw_prefix = values[3]
 
                     if "." in raw_prefix:
-                        match_ipv4 += 1
                         """
                         The size of the IPv4 allocations are not always a power of 2.
                         E.g. prefix 91.123.57.0 with a subnet size of 1792 IPs.
@@ -97,7 +83,6 @@ class AllocatedResources:
                         )
 
                     else:
-                        match_ipv6 += 1
                         prefix = ipaddress.ip_network(
                             f"{raw_prefix}/{values[4]}", strict=False
                         )
@@ -129,9 +114,6 @@ class AllocatedResources:
             f"Loaded {len(AllocatedResources.allocated_tree.nodes()):,} "  # type: ignore
             "allocated prefixes"
         )
-
-        print(skip_0, skip_1, skip_2, skip_6)
-        print(match_asn, match_ipv4, match_ipv6)
 
         write_json(
             list(AllocatedResources.assigned_asns),
@@ -231,3 +213,8 @@ class AllocatedResources:
                 to_delete.add(node.prefix)  # type: ignore
 
         return AllocatedResources._rebuild_without(tree, to_delete)
+
+    @staticmethod
+    def drop() -> None:
+        AllocatedResources.assigned_asns = set()
+        AllocatedResources.allocated_tree = radix.Radix()

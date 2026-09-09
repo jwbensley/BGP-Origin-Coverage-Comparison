@@ -8,6 +8,7 @@ dependencies = [
     "requests==2.34.2",
     "py-radix==1.1.0",
     "plotly==6.9.0",
+    "orjson>=3.12.0",
 ]
 
 [tool.uv]
