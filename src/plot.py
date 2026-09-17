@@ -47,7 +47,8 @@ def plot(
     plot_dir = Settings.get_plot_dir()
     out_file = os.path.join(plot_dir, output_file)
     comparisons = list(data.keys())
-    font_size = 27
+    font_size = 35
+    title_size = 40
 
     ensure_plotly_js(plot_dir)
 
@@ -61,12 +62,12 @@ def plot(
                     for comparison in comparisons
                 ],
                 text=[
-                    f"{data[comparison][f'{version}_percent']:,.2f}% "
+                    f"{data[comparison][f'{version}_percent']:,.2f}%<br>"
                     f"({data[comparison][f'{version}_count']:,})"
                     for comparison in comparisons
                 ],
                 customdata=[
-                    f"{data[comparison][f'{version}_percent']:,.2f}% "
+                    f"{data[comparison][f'{version}_percent']:,.2f}%<br>"
                     f"({data[comparison][f'{version}_count']:,})"
                     for comparison in comparisons
                 ],
@@ -79,7 +80,7 @@ def plot(
     fig.update_layout(
         barmode="group",
         title_text=title,
-        title_font=dict(size=30),
+        title_font=dict(size=title_size),
         title_x=0.5,
         legend=dict(
             yanchor="top", xanchor="left", x=0.01, y=1.1, font=dict(size=font_size)
@@ -124,24 +125,49 @@ def _series(
     }
 
 
+def _origin_series(
+    stats: dict[str, float],
+    matches_key: str,
+    mismatches_key: str,
+) -> tuple[dict[str, float], dict[str, float]]:
+    """
+    Build the matches/mismatches plot() series entries, using their combined
+    count (not the total prefix count) as the percentage denominator so the
+    two bars for a given IP version add up to 100%.
+    """
+    matches_v4 = stats[f"{matches_key}_v4"]
+    matches_v6 = stats[f"{matches_key}_v6"]
+    mismatches_v4 = stats[f"{mismatches_key}_v4"]
+    mismatches_v6 = stats[f"{mismatches_key}_v6"]
+    total_v4 = matches_v4 + mismatches_v4
+    total_v6 = matches_v6 + mismatches_v6
+
+    matches = {
+        "4_count": matches_v4,
+        "4_percent": (matches_v4 / total_v4) * 100,
+        "6_count": matches_v6,
+        "6_percent": (matches_v6 / total_v6) * 100,
+    }
+    mismatches = {
+        "4_count": mismatches_v4,
+        "4_percent": (mismatches_v4 / total_v4) * 100,
+        "6_count": mismatches_v6,
+        "6_percent": (mismatches_v6 / total_v6) * 100,
+    }
+    return matches, mismatches
+
+
 def main() -> None:
     parse_args()
     stats = load_json(Settings.get_stats_file())
 
+    dfz_irr_matches, dfz_irr_mismatches = _origin_series(
+        stats, "dfz_irr_origin_matches", "dfz_irr_origin_mismatches"
+    )
     plot(
         {
-            "DFZ origins matching IRR origins": _series(
-                stats,
-                "dfz_irr_origin_matches",
-                "dfz_prefixes_v4",
-                "dfz_prefixes_v6",
-            ),
-            "DFZ origins not matching IRR origins": _series(
-                stats,
-                "dfz_irr_origin_mismatches",
-                "dfz_prefixes_v4",
-                "dfz_prefixes_v6",
-            ),
+            "DFZ origins matching IRR origins": dfz_irr_matches,
+            "DFZ origins not matching IRR origins": dfz_irr_mismatches,
             "DFZ prefixes not found in the IRR": _series(
                 stats,
                 "dfz_irr_prefix_not_found",
@@ -153,20 +179,13 @@ def main() -> None:
         "DFZ prefix origins compared to IRR data",
     )
 
+    dfz_roa_matches, dfz_roa_mismatches = _origin_series(
+        stats, "dfz_roa_origin_matches", "dfz_roa_origin_mismatches"
+    )
     plot(
         {
-            "DFZ origins matching ROA origins": _series(
-                stats,
-                "dfz_roa_origin_matches",
-                "dfz_prefixes_v4",
-                "dfz_prefixes_v6",
-            ),
-            "DFZ origins not matching ROA origins": _series(
-                stats,
-                "dfz_roa_origin_mismatches",
-                "dfz_prefixes_v4",
-                "dfz_prefixes_v6",
-            ),
+            "DFZ origins matching ROA origins": dfz_roa_matches,
+            "DFZ origins not matching ROA origins": dfz_roa_mismatches,
             "DFZ prefixes not found in the RPKI": _series(
                 stats,
                 "dfz_roa_prefix_not_found",
@@ -178,20 +197,13 @@ def main() -> None:
         "DFZ prefix origins compared to ROA data",
     )
 
+    irr_dfz_matches, irr_dfz_mismatches = _origin_series(
+        stats, "irr_dfz_origin_matches", "irr_dfz_origin_mismatches"
+    )
     plot(
         {
-            "IRR origins matching DFZ origins": _series(
-                stats,
-                "irr_dfz_origin_matches",
-                "irr_prefixes_v4",
-                "irr_prefixes_v6",
-            ),
-            "IRR origins not matching DFZ origins": _series(
-                stats,
-                "irr_dfz_origin_mismatches",
-                "irr_prefixes_v4",
-                "irr_prefixes_v6",
-            ),
+            "IRR origins matching DFZ origins": irr_dfz_matches,
+            "IRR origins not matching DFZ origins": irr_dfz_mismatches,
             "IRR prefixes not found in the DFZ": _series(
                 stats,
                 "irr_dfz_prefix_not_found",
@@ -203,20 +215,13 @@ def main() -> None:
         "IRR prefix origins compared to DFZ data",
     )
 
+    irr_roa_matches, irr_roa_mismatches = _origin_series(
+        stats, "irr_roa_origin_matches", "irr_roa_origin_mismatches"
+    )
     plot(
         {
-            "IRR origins matching ROA origins": _series(
-                stats,
-                "irr_roa_origin_matches",
-                "irr_prefixes_v4",
-                "irr_prefixes_v6",
-            ),
-            "IRR origins not matching ROA origins": _series(
-                stats,
-                "irr_roa_origin_mismatches",
-                "irr_prefixes_v4",
-                "irr_prefixes_v6",
-            ),
+            "IRR origins matching ROA origins": irr_roa_matches,
+            "IRR origins not matching ROA origins": irr_roa_mismatches,
             "IRR prefixes not found in the RPKI": _series(
                 stats,
                 "irr_roa_prefix_not_found",
@@ -228,20 +233,13 @@ def main() -> None:
         "IRR prefix origins compared to ROA data",
     )
 
+    roa_dfz_matches, roa_dfz_mismatches = _origin_series(
+        stats, "roa_dfz_origin_matches", "roa_dfz_origin_mismatches"
+    )
     plot(
         {
-            "ROA origins matching DFZ origins": _series(
-                stats,
-                "roa_dfz_origin_matches",
-                "roa_prefixes_v4",
-                "roa_prefixes_v6",
-            ),
-            "ROA origins not matching DFZ origins": _series(
-                stats,
-                "roa_dfz_origin_mismatches",
-                "roa_prefixes_v4",
-                "roa_prefixes_v6",
-            ),
+            "ROA origins matching DFZ origins": roa_dfz_matches,
+            "ROA origins not matching DFZ origins": roa_dfz_mismatches,
             "ROA prefixes not found in the DFZ": _series(
                 stats,
                 "roa_dfz_prefix_not_found",
@@ -253,20 +251,13 @@ def main() -> None:
         "ROA prefix origins compared to DFZ data",
     )
 
+    roa_irr_matches, roa_irr_mismatches = _origin_series(
+        stats, "roa_irr_origin_matches", "roa_irr_origin_mismatches"
+    )
     plot(
         {
-            "ROA origins matching IRR origins": _series(
-                stats,
-                "roa_irr_origin_matches",
-                "roa_prefixes_v4",
-                "roa_prefixes_v6",
-            ),
-            "ROA origins not matching IRR origins": _series(
-                stats,
-                "roa_irr_origin_mismatches",
-                "roa_prefixes_v4",
-                "roa_prefixes_v6",
-            ),
+            "ROA origins matching IRR origins": roa_irr_matches,
+            "ROA origins not matching IRR origins": roa_irr_mismatches,
             "ROA prefixes not found in the IRR": _series(
                 stats,
                 "roa_irr_prefix_not_found",

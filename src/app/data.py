@@ -12,7 +12,7 @@ Functions for loading, saving, parsing, comparing the origin data
 def write_json(data: Any, filename: str) -> None:
     with open(filename, "w") as f:
         f.write(
-            orjson.dumps(
+            orjson.dumps( # type: ignore
                 data,
                 option=orjson.OPT_INDENT_2 | orjson.OPT_SORT_KEYS,
                 default=str,
@@ -24,7 +24,7 @@ def write_json(data: Any, filename: str) -> None:
 def load_json(filename: str) -> Any:
     logging.info(f"Loading data from {filename}")
     with open(filename, "r") as f:
-        data = orjson.loads(f.read())
+        data = orjson.loads(f.read()) # type: ignore
     logging.info(f"Loaded {len(data):,} items from {filename}")
     return data
 
@@ -33,7 +33,7 @@ def load_stats(filename: str) -> tuple[int, ...]:
     logging.info(f"Loading results stats from {filename}")
 
     with open(filename, "r") as f:
-        data = orjson.loads(f.read())
+        data = orjson.loads(f.read()) # type: ignore
 
     return tuple(data.values())
 
@@ -45,7 +45,7 @@ def load_tree_from_json(filename: str) -> radix.Radix:
     logging.info(f"Loading tree from {filename}")
 
     with open(filename, "r") as f:
-        data = orjson.loads(f.read())
+        data = orjson.loads(f.read()) # type: ignore
     tree = radix.Radix()
     for prefix, value in data.items():
         node = tree.add(prefix)  # type: ignore
