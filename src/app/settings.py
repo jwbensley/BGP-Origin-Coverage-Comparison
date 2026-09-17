@@ -1,5 +1,6 @@
 import datetime
 import logging
+import multiprocessing
 import os
 from .web_file import WebFile
 from .irr_file import IrrFile, IrrParsers
@@ -92,6 +93,7 @@ class Settings:
         os.path.join(data_dir, Defaults.NRO_ALLOCATIONS),
     )
     overwrite_files = False
+    processes = multiprocessing.cpu_count() - 1
     plot_dir = os.path.join(os.path.dirname(__file__), "..", "..", "plots")
     yyyymmdd = (datetime.datetime.now() - datetime.timedelta(days=1)).strftime(
         "%Y%m%d"
@@ -154,6 +156,10 @@ class Settings:
     @staticmethod
     def get_plot_dir() -> str:
         return Settings.plot_dir
+
+    @staticmethod
+    def get_processes() -> int:
+        return Settings.processes
 
     @staticmethod
     def get_overwrite_files() -> bool:
@@ -233,6 +239,10 @@ class Settings:
     @staticmethod
     def set_overwrite_files(overwrite_files: bool) -> None:
         Settings.overwrite_files = overwrite_files
+
+    @staticmethod
+    def set_processes(processes: int) -> None:
+        Settings.processes = processes
 
     @staticmethod
     def set_rib_dump(url: str) -> None:

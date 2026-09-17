@@ -10,7 +10,6 @@ from app.data import (
     compare_origins,
     load_tree_from_json,
     print_results,
-    write_json,
 )
 from app.download import Download
 from app.irr_parser import IrrParser
@@ -98,6 +97,13 @@ def parse_args() -> None:
         default=Settings.get_load_output(),
         help="Toggle loading existing comparison results instead of running the comparison",
     )
+    parser.add_argument(
+        "--processes",
+        "-p",
+        type=int,
+        default=Settings.get_processes(),
+        help="Max number of parallel processes/threads to use",
+    )
 
     args = parser.parse_args()
 
@@ -110,6 +116,7 @@ def parse_args() -> None:
     Settings.set_overwrite_files(args.overwrite)
     Settings.set_load_input(args.load_input)
     Settings.set_load_output(args.load_output)
+    Settings.set_processes(args.processes)
 
     __setup_logging(Settings.get_log_level())
 
@@ -143,7 +150,7 @@ def main() -> None:
         # Download the route/route6 data from the various RIRs.
         # Download each file using a different thread to speed up the process.
         with ThreadPoolExecutor(
-            max_workers=len(Settings.get_irr_files())
+            max_workers=Settings.get_processes()
         ) as executor:
             futures = [
                 executor.submit(
@@ -181,6 +188,7 @@ def main() -> None:
             Settings.get_rib_dump().get_filename(),
             Settings.get_dfz_origins(),
             Settings.get_prefix_lengths(),
+            Settings.get_processes(),
         )
         irr_origins = IrrParser.parse_files(
             Settings.get_irr_files(),

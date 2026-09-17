@@ -276,6 +276,7 @@ class MrtParser:
         filename: str,
         json_output: str,
         prefix_lengths: tuple[int, int, int, int],
+        processes: int,
     ) -> radix.Radix:
         """
         Parse an MRT RIB file and return a radix.Radix tree.
@@ -299,7 +300,7 @@ class MrtParser:
         dfz_tree = radix.Radix()
 
         try:
-            with multiprocessing.Pool(processes=len(chunk_files)) as pool:
+            with multiprocessing.Pool(processes=processes) as pool:
                 chunk_results = pool.starmap(
                     MrtParser._parse_mrt_chunk,
                     [

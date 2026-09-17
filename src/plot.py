@@ -47,6 +47,7 @@ def plot(
     plot_dir = Settings.get_plot_dir()
     out_file = os.path.join(plot_dir, output_file)
     comparisons = list(data.keys())
+    font_size = 27
 
     ensure_plotly_js(plot_dir)
 
@@ -56,21 +57,21 @@ def plot(
                 name=f"IPv{version}",
                 x=comparisons,
                 y=[
-                    data[comparison][f"{version}_count"]
+                    data[comparison][f"{version}_percent"]
                     for comparison in comparisons
                 ],
                 text=[
-                    f"{data[comparison][f'{version}_count']:,} "
-                    f"({data[comparison][f'{version}_percent']:,.2f}%)"
+                    f"{data[comparison][f'{version}_percent']:,.2f}% "
+                    f"({data[comparison][f'{version}_count']:,})"
                     for comparison in comparisons
                 ],
                 customdata=[
-                    f"{data[comparison][f'{version}_count']:,} "
-                    f"({data[comparison][f'{version}_percent']:,.2f}%)"
+                    f"{data[comparison][f'{version}_percent']:,.2f}% "
+                    f"({data[comparison][f'{version}_count']:,})"
                     for comparison in comparisons
                 ],
                 hovertemplate="%{customdata}",
-                textfont=dict(size=17, color="black"),
+                textfont=dict(size=font_size, color="black"),
             )
             for version in (4, 6)
         ],
@@ -78,23 +79,30 @@ def plot(
     fig.update_layout(
         barmode="group",
         title_text=title,
-        title_font=dict(size=28),
+        title_font=dict(size=30),
         title_x=0.5,
-        legend=dict(yanchor="top", xanchor="left", x=0.01, y=1.1),
+        legend=dict(
+            yanchor="top", xanchor="left", x=0.01, y=1.1, font=dict(size=font_size)
+        ),
         margin=dict(l=0, r=0, b=0, t=100, pad=0),
-        xaxis=dict(tickfont=dict(size=17)),
-        yaxis=dict(tickfont=dict(size=17)),
+        xaxis=dict(tickfont=dict(size=font_size)),
+        yaxis=dict(tickfont=dict(size=font_size), range=[0, 100]),
     )
+    filename = f"{out_file}.html"
     po.plot(
         fig,
         image_width=1920,
         image_height=1080,
-        filename=out_file,
+        filename=filename,
         auto_open=False,
         include_plotlyjs="directory",
+        config={"toImageButtonOptions": {"filename": title}},
     )
+    print(f"Wrote to {filename}")
 
-    print(f"Wrote to {out_file}")
+    filename = f"{out_file}.png"
+    fig.write_image(filename, width=1920, height=1080)
+    print(f"Wrote to {filename}")
 
 
 def _series(
@@ -142,7 +150,7 @@ def main() -> None:
             ),
         },
         "DFZ prefix origins compared to IRR data",
-        "plot_dfz_irr.html",
+        "DFZ prefix origins compared to IRR data",
     )
 
     plot(
@@ -167,7 +175,7 @@ def main() -> None:
             ),
         },
         "DFZ prefix origins compared to ROA data",
-        "plot_dfz_roa.html",
+        "DFZ prefix origins compared to ROA data",
     )
 
     plot(
@@ -192,7 +200,7 @@ def main() -> None:
             ),
         },
         "IRR prefix origins compared to DFZ data",
-        "plot_irr_dfz.html",
+        "IRR prefix origins compared to DFZ data",
     )
 
     plot(
@@ -217,7 +225,7 @@ def main() -> None:
             ),
         },
         "IRR prefix origins compared to ROA data",
-        "plot_irr_roa.html",
+        "IRR prefix origins compared to ROA data",
     )
 
     plot(
@@ -242,7 +250,7 @@ def main() -> None:
             ),
         },
         "ROA prefix origins compared to DFZ data",
-        "plot_roa_dfz.html",
+        "ROA prefix origins compared to DFZ data",
     )
 
     plot(
@@ -267,7 +275,7 @@ def main() -> None:
             ),
         },
         "ROA prefix origins compared to IRR data",
-        "plot_roa_irr.html",
+        "ROA prefix origins compared to IRR data",
     )
 
 

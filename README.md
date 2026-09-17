@@ -9,7 +9,11 @@ This is achieved by:
 * Downloading and parsing the RPKI ROA data from a public RPKI cache
 * Comparing the origin ASNs of each route in the DFZ/IRR/RPKI data
 
-Prefix length is limit to /8 to /24 / /48.
+Prefix length is limit to /8 to /24 and /8 to /48.
+
+## Results
+
+The generated plots are stored in [plots/](plots/).
 
 ## Usage
 
