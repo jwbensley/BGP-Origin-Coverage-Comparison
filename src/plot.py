@@ -3,6 +3,7 @@
 import json
 import os
 import urllib.request
+import warnings
 import plotly.graph_objects as go  # type: ignore
 import plotly.offline as po  # type: ignore
 from plotly.io._utils import plotly_cdn_url  # type: ignore
@@ -83,11 +84,25 @@ def plot(
         title_font=dict(size=title_size),
         title_x=0.5,
         legend=dict(
-            yanchor="top", xanchor="left", x=0.01, y=1.1, font=dict(size=font_size)
+            yanchor="top",
+            xanchor="left",
+            x=0.01,
+            y=1.1,
+            font=dict(size=font_size),
+            bgcolor="rgba(0,0,0,0)",
         ),
         margin=dict(l=0, r=0, b=0, t=100, pad=0),
         xaxis=dict(tickfont=dict(size=font_size)),
         yaxis=dict(tickfont=dict(size=font_size), range=[0, 100]),
+    )
+    # The first two comparisons (origin matches/mismatches) are related, the
+    # last one (prefixes not found) is not. Category positions are 0, 1, 2...
+    # so draw a dashed separator half way between the last two.
+    fig.add_vline(
+        x=len(comparisons) - 1.5,
+        line_dash="dash",
+        line_width=3,
+        line_color="grey",
     )
     filename = f"{out_file}.html"
     po.plot(
@@ -102,7 +117,15 @@ def plot(
     print(f"Wrote to {filename}")
 
     filename = f"{out_file}.png"
-    fig.write_image(filename, width=1920, height=1080)
+    with warnings.catch_warnings():
+        # Kaleido < 1.0.0 is deprecated in plotly but still works fine.
+        # Older Kaleido is used because newer versions require that Chromium be installed separately, which is not guaranteed in all environments.
+        warnings.filterwarnings(
+            "ignore",
+            category=DeprecationWarning,
+            message=r"\s*Support for Kaleido versions less than 1\.0\.0",
+        )
+        fig.write_image(filename, width=1920, height=1080)
     print(f"Wrote to {filename}")
 
 
