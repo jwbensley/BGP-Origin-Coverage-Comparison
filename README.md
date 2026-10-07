@@ -13,6 +13,8 @@ Prefix length is limit to /8 to /24 and /8 to /48.
 
 ## Results
 
+The comparison was in September 2026.
+
 The generated plots are stored in [plots/](plots/).
 
 ## Usage
